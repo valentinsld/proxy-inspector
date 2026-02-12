@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Proxy Highlighter — Element Inspector</title>
+    <style>
+      :root {
+        --bg: #0f1117;
+        --surface: #1a1d27;
+        --surface-hover: #252836;
+        --border: #2e3140;
+        --text: #e4e6f0;
+        --text-muted: #8b8fa3;
+        --accent: #4f8cff;
+        --accent-hover: #6aa0ff;
+        --danger: #ff4444;
+        --success: #44cc88;
+        --radius: 8px;
+        --font:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", sans-serif;
+        --mono: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* ─── Toolbar ─────────────────────────────────────── */
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+
+      .toolbar .logo {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--accent);
+        margin-right: 8px;
+        white-space: nowrap;
+      }
+
+      .toolbar .logo svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .url-input-wrapper {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0 12px;
+        transition: border-color 0.2s;
+      }
+
+      .url-input-wrapper:focus-within {
+        border-color: var(--accent);
+      }
+
+      .url-input-wrapper input {
+        flex: 1;
+        background: none;
+        border: none;
+        color: var(--text);
+        font-size: 13px;
+        font-family: var(--mono);
+        padding: 8px 0;
+        outline: none;
+      }
+
+      .url-input-wrapper input::placeholder {
+        color: var(--text-muted);
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+
+      .btn:hover {
+        background: var(--surface-hover);
+        border-color: var(--text-muted);
+      }
+
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .btn.primary:hover {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+      }
+
+      .btn.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .btn.danger {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+
+      .btn.danger:hover {
+        background: var(--danger);
+        color: #fff;
+      }
+
+      .btn svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* ─── Main content ────────────────────────────────── */
+
+      .main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* ─── Sidebar ─────────────────────────────────────── */
+
+      .sidebar {
+        width: 320px;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+
+      .sidebar-section {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .sidebar-section h3 {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+      }
+
+      .selector-input-wrapper {
+        display: flex;
+        gap: 6px;
+      }
+
+      .selector-input-wrapper input {
+        flex: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        font-size: 12px;
+        font-family: var(--mono);
+        padding: 6px 10px;
+        outline: none;
+      }
+
+      .selector-input-wrapper input:focus {
+        border-color: var(--accent);
+      }
+
+      .color-picker-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .color-picker-row label {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .color-picker-row input[type="color"] {
+        width: 32px;
+        height: 24px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--bg);
+        cursor: pointer;
+        padding: 0;
+      }
+
+      /* Info panel */
+      .element-info {
+        flex: 1;
+        overflow-y: auto;
+        padding: 14px 16px;
+      }
+
+      .element-info h3 {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+      }
+
+      .info-empty {
+        color: var(--text-muted);
+        font-size: 12px;
+        font-style: italic;
+      }
+
+      .info-card {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 10px 12px;
+        margin-bottom: 8px;
+      }
+
+      .info-card .info-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+      }
+
+      .info-card .info-value {
+        font-size: 12px;
+        font-family: var(--mono);
+        color: var(--text);
+        word-break: break-all;
+      }
+
+      .info-card .info-value.tag {
+        color: var(--accent);
+      }
+
+      /* ─── Iframe container ────────────────────────────── */
+
+      .iframe-container {
+        flex: 1;
+        position: relative;
+        background: #fff;
+      }
+
+      .iframe-container iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+
+      .iframe-placeholder {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        gap: 16px;
+        color: var(--text-muted);
+      }
+
+      .iframe-placeholder svg {
+        width: 64px;
+        height: 64px;
+        opacity: 0.3;
+      }
+
+      .iframe-placeholder p {
+        font-size: 14px;
+      }
+
+      .iframe-placeholder kbd {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-size: 11px;
+        font-family: var(--mono);
+      }
+
+      /* ─── Log panel ───────────────────────────────────── */
+
+      .log-panel {
+        overflow-y: auto;
+        max-height: 120px;
+        padding: 8px 16px;
+        border-top: 1px solid var(--border);
+      }
+
+      .log-entry {
+        font-size: 11px;
+        font-family: var(--mono);
+        color: var(--text-muted);
+        padding: 2px 0;
+      }
+
+      .log-entry.error {
+        color: var(--danger);
+      }
+
+      .log-entry.success {
+        color: var(--success);
+      }
+
+      /* ─── Navigation banner ─────────────────────────────── */
+
+      .nav-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-bottom: 2px solid var(--accent);
+        color: var(--text);
+        font-size: 13px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+        transform: translateY(-100%);
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: auto;
+      }
+
+      .nav-banner.visible {
+        transform: translateY(0);
+      }
+
+      .nav-banner .nav-icon {
+        flex-shrink: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--accent);
+        border-radius: 8px;
+      }
+
+      .nav-banner .nav-icon svg {
+        width: 18px;
+        height: 18px;
+        color: #fff;
+      }
+
+      .nav-banner .nav-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .nav-banner .nav-title {
+        font-weight: 600;
+        font-size: 13px;
+        margin-bottom: 2px;
+      }
+
+      .nav-banner .nav-url {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--accent);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 600px;
+      }
+
+      .nav-banner .nav-link-text {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+
+      .nav-banner .nav-actions {
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .nav-banner .btn-nav {
+        padding: 6px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .nav-banner .btn-nav:hover {
+        background: var(--surface-hover);
+      }
+
+      .nav-banner .btn-nav.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .nav-banner .btn-nav.primary:hover {
+        background: var(--accent-hover);
+      }
+
+      /* ─── Responsive ──────────────────────────────────── */
+
+      @media (max-width: 800px) {
+        .sidebar {
+          width: 240px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation banner -->
+    <div class="nav-banner" id="navBanner">
+      <div class="nav-icon">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
+      <div class="nav-content">
+        <div class="nav-title">Navigation détectée</div>
+        <div class="nav-url" id="navUrl"></div>
+        <div class="nav-link-text" id="navLinkText"></div>
+      </div>
+      <div class="nav-actions">
+        <button class="btn-nav" id="navCopy" title="Copier l'URL">
+          Copier
+        </button>
+        <button
+          class="btn-nav primary"
+          id="navGo"
+          title="Naviguer vers cette page"
+        >
+          Ouvrir
+        </button>
+        <button class="btn-nav" id="navDismiss" title="Fermer">✕</button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="logo">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M9 9h6v6H9z" />
+        </svg>
+        Proxy Highlighter
+      </div>
+
+      <div class="url-input-wrapper">
+        <input
+          type="text"
+          id="urlInput"
+          placeholder="https://example.com"
+          spellcheck="false"
+        />
+      </div>
+
+      <button class="btn primary" id="btnGo" title="Load URL">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+        Go
+      </button>
+
+      <button
+        class="btn"
+        id="btnInspector"
+        title="Toggle Inspector (Ctrl+Shift+C)"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="M21 21l-4.35-4.35" />
+        </svg>
+        Inspector
+      </button>
+
+      <button class="btn danger" id="btnClear" title="Clear highlight">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+        Clear
+      </button>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-section">
+          <h3>Sélecteur CSS</h3>
+          <div class="selector-input-wrapper">
+            <input
+              type="text"
+              id="selectorInput"
+              placeholder="#id, .class, tag"
+              spellcheck="false"
+            />
+            <button
+              class="btn primary"
+              id="btnHighlight"
+              style="padding: 6px 10px"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 12px; height: 12px"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="color-picker-row">
+            <label>Couleur :</label>
+            <input type="color" id="colorPicker" value="#FF4444" />
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h3>Recherche par texte</h3>
+          <div class="selector-input-wrapper">
+            <input
+              type="text"
+              id="textSearchInput"
+              placeholder="Search text in page..."
+              spellcheck="false"
+            />
+            <button
+              class="btn primary"
+              id="btnTextSearch"
+              style="padding: 6px 10px"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 12px; height: 12px"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="element-info" id="elementInfo">
+          <h3>Élément sélectionné</h3>
+          <p class="info-empty">
+            Aucun élément sélectionné. Utilisez l'Inspector ou entrez un
+            sélecteur CSS.
+          </p>
+        </div>
+
+        <div class="log-panel" id="logPanel"></div>
+      </div>
+
+      <!-- Iframe -->
+      <div class="iframe-container" id="iframeContainer">
+        <div class="iframe-placeholder" id="placeholder">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M3 9h18" />
+            <circle cx="7" cy="6" r="1" fill="currentColor" />
+            <circle cx="10" cy="6" r="1" fill="currentColor" />
+          </svg>
+          <p>
+            Entrez une URL et cliquez sur <strong>Go</strong> pour commencer
+          </p>
+          <p><kbd>Ctrl+Shift+C</kbd> pour activer l'Inspector dans l'iframe</p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ─── State ──────────────────────────────────────────
+      let proxyIframe = null
+      let inspectorActive = false
+
+      // ─── DOM refs ───────────────────────────────────────
+      const urlInput = document.getElementById("urlInput")
+      const btnGo = document.getElementById("btnGo")
+      const btnInspector = document.getElementById("btnInspector")
+      const btnClear = document.getElementById("btnClear")
+      const selectorInput = document.getElementById("selectorInput")
+      const btnHighlight = document.getElementById("btnHighlight")
+      const textSearchInput = document.getElementById("textSearchInput")
+      const btnTextSearch = document.getElementById("btnTextSearch")
+      const colorPicker = document.getElementById("colorPicker")
+      const iframeContainer = document.getElementById("iframeContainer")
+      const placeholder = document.getElementById("placeholder")
+      const elementInfo = document.getElementById("elementInfo")
+      const logPanel = document.getElementById("logPanel")
+
+      // ─── Log ────────────────────────────────────────────
+      function log(msg, type = "") {
+        const entry = document.createElement("div")
+        entry.className = "log-entry " + type
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`
+        logPanel.prepend(entry)
+        // Keep max 50 entries
+        while (logPanel.children.length > 50) {
+          logPanel.removeChild(logPanel.lastChild)
+        }
+      }
+
+      // ─── Load URL ───────────────────────────────────────
+      function loadUrl(url) {
+        if (!url) return
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+          url = "https://" + url
+          urlInput.value = url
+        }
+
+        // Remove old iframe
+        if (proxyIframe) {
+          proxyIframe.remove()
+        }
+        placeholder.style.display = "none"
+
+        proxyIframe = document.createElement("iframe")
+        proxyIframe.src = `/proxy?url=${encodeURIComponent(url)}`
+        proxyIframe.style.cssText = "width:100%;height:100%;border:none;"
+        // NO sandbox attribute — sandbox restricts too many things needed by
+        // modern frameworks (dynamic imports, eval, Workers, module scripts).
+        // Since everything loads from our own origin, this is safe.
+        proxyIframe.setAttribute("allow", "clipboard-read; clipboard-write")
+        iframeContainer.appendChild(proxyIframe)
+
+        log(`Loading: ${url}`, "success")
+      }
+
+      btnGo.addEventListener("click", () => loadUrl(urlInput.value.trim()))
+      urlInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") loadUrl(urlInput.value.trim())
+      })
+
+      // ─── Send message to iframe ─────────────────────────
+      function sendToIframe(msg) {
+        if (!proxyIframe || !proxyIframe.contentWindow) {
+          log("No page loaded", "error")
+          return
+        }
+        proxyIframe.contentWindow.postMessage(
+          { source: "proxy-highlight-host", ...msg },
+          "*",
+        )
+      }
+
+      // ─── Inspector toggle ───────────────────────────────
+      btnInspector.addEventListener("click", () => {
+        inspectorActive = !inspectorActive
+        btnInspector.classList.toggle("active", inspectorActive)
+        sendToIframe({
+          type: inspectorActive ? "enable-inspector" : "disable-inspector",
+        })
+        log(inspectorActive ? "Inspector activé" : "Inspector désactivé")
+      })
+
+      // ─── Clear ──────────────────────────────────────────
+      btnClear.addEventListener("click", () => {
+        sendToIframe({ type: "clear-highlight" })
+        inspectorActive = false
+        btnInspector.classList.remove("active")
+        elementInfo.innerHTML = `
+        <h3>Élément sélectionné</h3>
+        <p class="info-empty">Aucun élément sélectionné.</p>
+      `
+        log("Highlight cleared")
+      })
+
+      // ─── Highlight by selector ──────────────────────────
+      function highlightSelector() {
+        const sel = selectorInput.value.trim()
+        if (!sel) return
+        sendToIframe({
+          type: "highlight-selector",
+          selector: sel,
+          color: colorPicker.value,
+          scroll: true,
+        })
+        log(`Highlight: ${sel}`)
+      }
+
+      btnHighlight.addEventListener("click", highlightSelector)
+      selectorInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") highlightSelector()
+      })
+
+      // ─── Highlight by text ──────────────────────────────
+      function highlightText() {
+        const text = textSearchInput.value.trim()
+        if (!text) return
+        sendToIframe({
+          type: "highlight-text",
+          text: text,
+          color: colorPicker.value,
+          scroll: true,
+        })
+        log(`Text search: "${text}"`)
+      }
+
+      btnTextSearch.addEventListener("click", highlightText)
+      textSearchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") highlightText()
+      })
+
+      // ─── Navigation banner ──────────────────────────────
+      const navBanner = document.getElementById("navBanner")
+      const navUrl = document.getElementById("navUrl")
+      const navLinkText = document.getElementById("navLinkText")
+      const navGo = document.getElementById("navGo")
+      const navCopy = document.getElementById("navCopy")
+      const navDismiss = document.getElementById("navDismiss")
+      let pendingNavUrl = ""
+
+      function showNavBanner(url, linkText) {
+        pendingNavUrl = url
+        navUrl.textContent = url
+        navLinkText.textContent = linkText
+          ? `Texte du lien : "${linkText}"`
+          : ""
+        navBanner.classList.add("visible")
+      }
+
+      function hideNavBanner() {
+        navBanner.classList.remove("visible")
+        pendingNavUrl = ""
+      }
+
+      navDismiss.addEventListener("click", hideNavBanner)
+
+      navGo.addEventListener("click", () => {
+        if (pendingNavUrl) {
+          urlInput.value = pendingNavUrl
+          loadUrl(pendingNavUrl)
+          hideNavBanner()
+        }
+      })
+
+      navCopy.addEventListener("click", () => {
+        if (pendingNavUrl) {
+          navigator.clipboard.writeText(pendingNavUrl).then(() => {
+            navCopy.textContent = "Copié !"
+            setTimeout(() => {
+              navCopy.textContent = "Copier"
+            }, 1500)
+          })
+        }
+      })
+
+      // ─── Listen for messages from iframe ────────────────
+      window.addEventListener("message", (event) => {
+        const msg = event.data
+        if (!msg || msg.source !== "proxy-highlight") return
+
+        switch (msg.type) {
+          case "ready":
+            log("Page ready: " + msg.data.url, "success")
+            hideNavBanner()
+            break
+
+          case "element-highlighted":
+            displayElementInfo(msg.data)
+            break
+
+          case "inspector-mode":
+            inspectorActive = msg.data.enabled
+            btnInspector.classList.toggle("active", inspectorActive)
+            break
+
+          case "link-navigation":
+            showNavBanner(msg.data.url, msg.data.text)
+            log(`Navigation bloquée → ${msg.data.url}`, "error")
+            break
+
+          case "error":
+            log(msg.data.message, "error")
+            break
+        }
+      })
+
+      // ─── Display element info ───────────────────────────
+      function displayElementInfo(data) {
+        const { selector, tagName, id, classes, rect, text } = data
+
+        let html = `<h3>Élément sélectionné</h3>`
+
+        html += `<div class="info-card">
+        <div class="info-label">Tag</div>
+        <div class="info-value tag">&lt;${tagName}&gt;</div>
+      </div>`
+
+        html += `<div class="info-card">
+        <div class="info-label">Selector</div>
+        <div class="info-value">${escapeHtml(selector)}</div>
+      </div>`
+
+        if (id) {
+          html += `<div class="info-card">
+          <div class="info-label">ID</div>
+          <div class="info-value">#${escapeHtml(id)}</div>
+        </div>`
+        }
+
+        if (classes && classes.length > 0) {
+          html += `<div class="info-card">
+          <div class="info-label">Classes</div>
+          <div class="info-value">${classes.map((c) => "." + escapeHtml(c)).join(" ")}</div>
+        </div>`
+        }
+
+        if (rect) {
+          html += `<div class="info-card">
+          <div class="info-label">Dimensions</div>
+          <div class="info-value">${Math.round(rect.width)} × ${Math.round(rect.height)}px</div>
+        </div>`
+        }
+
+        if (text) {
+          html += `<div class="info-card">
+          <div class="info-label">Texte</div>
+          <div class="info-value">${escapeHtml(text.substring(0, 150))}${text.length > 150 ? "…" : ""}</div>
+        </div>`
+        }
+
+        elementInfo.innerHTML = html
+
+        // Auto-fill selector input
+        selectorInput.value = selector
+
+        log(`Selected: <${tagName}>${id ? "#" + id : ""}`, "success")
+      }
+
+      function escapeHtml(str) {
+        const div = document.createElement("div")
+        div.textContent = str
+        return div.innerHTML
+      }
+
+      // ─── Keyboard shortcuts ─────────────────────────────
+      document.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "C") {
+          e.preventDefault()
+          btnInspector.click()
+        }
+      })
+
+      // ─── Auto-load if URL in hash ───────────────────────
+      if (window.location.hash) {
+        const url = decodeURIComponent(window.location.hash.substring(1))
+        urlInput.value = url
+        loadUrl(url)
+      }
+    </script>
+  </body>
+</html>

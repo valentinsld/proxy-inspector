@@ -51,7 +51,6 @@
   let labelEl: HTMLDivElement | null = null
 
   let currentTarget: Element | null = null
-  let inspectorMode = false
   let animationFrameId: number | null = null
 
   function createOverlayElements() {
@@ -270,7 +269,7 @@
 
     // Notify parent
     notifyParent("element-highlighted", {
-      selector: getUniqueSelector(el),
+      // selector: getUniqueSelector(el),
       tagName: el.tagName.toLowerCase(),
       id: el.id || null,
       classes: Array.from(el.classList),
@@ -304,84 +303,40 @@
     }
   }
 
-  // ─── Inspector mode (hover & click) ─────────────────────────────────────
-
-  function enableInspector() {
-    if (inspectorMode) return
-    inspectorMode = true
-    document.addEventListener("mousemove", onInspectorMove, true)
-    document.addEventListener("click", onInspectorClick, true)
-    document.body.style.cursor = "crosshair"
-    notifyParent("inspector-mode", { enabled: true })
-  }
-
-  function disableInspector() {
-    if (!inspectorMode) return
-    inspectorMode = false
-    document.removeEventListener("mousemove", onInspectorMove, true)
-    document.removeEventListener("click", onInspectorClick, true)
-    document.body.style.cursor = ""
-    notifyParent("inspector-mode", { enabled: false })
-  }
-
-  function onInspectorMove(e: MouseEvent) {
-    const target = document.elementFromPoint(e.clientX, e.clientY)
-    if (
-      target &&
-      !target.hasAttribute("data-proxy-highlight") &&
-      target !== document.documentElement &&
-      target !== document.body
-    ) {
-      highlightElement(target, { scroll: false })
-    }
-  }
-
-  function onInspectorClick(e: MouseEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    e.stopImmediatePropagation()
-
-    const target = document.elementFromPoint(e.clientX, e.clientY)
-    if (target && !target.hasAttribute("data-proxy-highlight")) {
-      highlightElement(target, { scroll: false })
-      disableInspector()
-    }
-  }
-
   // ─── CSS selector generation ────────────────────────────────────────────
 
-  function getUniqueSelector(el: Element): string {
-    if (el.id) return `#${CSS.escape(el.id)}`
+  // function getUniqueSelector(el: Element): string {
+  //   if (el.id) return `#${CSS.escape(el.id)}`
 
-    const path: string[] = []
-    let current: Element | null = el
+  //   const path: string[] = []
+  //   let current: Element | null = el
 
-    while (current && current !== document.documentElement) {
-      let selector = current.tagName.toLowerCase()
+  //   while (current && current !== document.documentElement) {
+  //     let selector = current.tagName.toLowerCase()
 
-      if (current.id) {
-        selector = `#${CSS.escape(current.id)}`
-        path.unshift(selector)
-        break
-      }
+  //     if (current.id) {
+  //       selector = `#${CSS.escape(current.id)}`
+  //       path.unshift(selector)
+  //       break
+  //     }
 
-      const parent: Element | null = current.parentElement
-      if (parent) {
-        const siblings = Array.from(parent.children).filter(
-          (c) => c.tagName === current!.tagName,
-        )
-        if (siblings.length > 1) {
-          const index = siblings.indexOf(current) + 1
-          selector += `:nth-of-type(${index})`
-        }
-      }
+  //     const parent: Element | null = current.parentElement
+  //     if (parent) {
+  //       const siblings = Array.from(parent.children).filter(
+  //         (c) => c.tagName === current!.tagName,
+  //       )
+  //       if (siblings.length > 1) {
+  //         const index = siblings.indexOf(current) + 1
+  //         selector += `:nth-of-type(${index})`
+  //       }
+  //     }
 
-      path.unshift(selector)
-      current = parent
-    }
+  //     path.unshift(selector)
+  //     current = parent
+  //   }
 
-    return path.join(" > ")
-  }
+  //   return path.join(" > ")
+  // }
 
   // ─── Utility ────────────────────────────────────────────────────────────
 
@@ -473,17 +428,8 @@
         break
       }
 
-      case "enable-inspector":
-        enableInspector()
-        break
-
-      case "disable-inspector":
-        disableInspector()
-        break
-
       case "clear-highlight":
         highlightElement(null)
-        disableInspector()
         break
 
       case "update-config":
@@ -543,7 +489,7 @@
     tag: string
     id?: string
     classes?: string[]
-    selector: string
+    // selector: string
     children?: DomNode[]
     text?: string
   }
@@ -559,7 +505,7 @@
 
     const node: DomNode = {
       tag: el.tagName.toLowerCase(),
-      selector: getUniqueSelector(el),
+      // selector: getUniqueSelector(el),
     }
 
     if (el.id) node.id = el.id
@@ -584,22 +530,10 @@
   // ─── Keyboard shortcut ──────────────────────────────────────────────────
 
   document.addEventListener("keydown", (e) => {
-    // Escape to clear highlight / exit inspector
+    // Escape to clear highlight
     if (e.key === "Escape") {
-      if (inspectorMode) {
-        disableInspector()
-      }
       highlightElement(null)
     }
-    // Ctrl/Cmd + Shift + C to toggle inspector
-    // if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "C") {
-    //   e.preventDefault()
-    //   if (inspectorMode) {
-    //     disableInspector()
-    //   } else {
-    //     enableInspector()
-    //   }
-    // }
   })
 
   // ─── Intercept link navigation ──────────────────────────────────────────
@@ -609,9 +543,6 @@
   document.addEventListener(
     "click",
     (e: MouseEvent) => {
-      // Don't interfere with inspector mode clicks
-      if (inspectorMode) return
-
       // Walk up from target to find closest <a>
       let target = e.target as HTMLElement | null
       while (target && target.tagName !== "A") {
@@ -661,7 +592,7 @@
       notifyParent("link-navigation", {
         url: fullUrl,
         text: (anchor.textContent || "").trim().substring(0, 200),
-        selector: getUniqueSelector(anchor),
+        // selector: getUniqueSelector(anchor),
       })
     },
     true,

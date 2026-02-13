@@ -523,23 +523,6 @@
         Go
       </button>
 
-      <button
-        class="btn"
-        id="btnInspector"
-        title="Toggle Inspector (Ctrl+Shift+C)"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <circle cx="11" cy="11" r="8" />
-          <path d="M21 21l-4.35-4.35" />
-        </svg>
-        Inspector
-      </button>
-
       <button class="btn danger" id="btnClear" title="Clear highlight">
         <svg
           viewBox="0 0 24 24"
@@ -620,8 +603,7 @@
         <div class="element-info" id="elementInfo">
           <h3>Élément sélectionné</h3>
           <p class="info-empty">
-            Aucun élément sélectionné. Utilisez l'Inspector ou entrez un
-            sélecteur CSS.
+            Aucun élément sélectionné. Entrez un sélecteur CSS.
           </p>
         </div>
 
@@ -645,7 +627,6 @@
           <p>
             Entrez une URL et cliquez sur <strong>Go</strong> pour commencer
           </p>
-          <p><kbd>Ctrl+Shift+C</kbd> pour activer l'Inspector dans l'iframe</p>
         </div>
       </div>
     </div>
@@ -653,12 +634,10 @@
     <script>
       // ─── State ──────────────────────────────────────────
       let proxyIframe = null
-      let inspectorActive = false
 
       // ─── DOM refs ───────────────────────────────────────
       const urlInput = document.getElementById("urlInput")
       const btnGo = document.getElementById("btnGo")
-      const btnInspector = document.getElementById("btnInspector")
       const btnClear = document.getElementById("btnClear")
       const selectorInput = document.getElementById("selectorInput")
       const btnHighlight = document.getElementById("btnHighlight")
@@ -725,21 +704,9 @@
         )
       }
 
-      // ─── Inspector toggle ───────────────────────────────
-      btnInspector.addEventListener("click", () => {
-        inspectorActive = !inspectorActive
-        btnInspector.classList.toggle("active", inspectorActive)
-        sendToIframe({
-          type: inspectorActive ? "enable-inspector" : "disable-inspector",
-        })
-        log(inspectorActive ? "Inspector activé" : "Inspector désactivé")
-      })
-
       // ─── Clear ──────────────────────────────────────────
       btnClear.addEventListener("click", () => {
         sendToIframe({ type: "clear-highlight" })
-        inspectorActive = false
-        btnInspector.classList.remove("active")
         elementInfo.innerHTML = `
         <h3>Élément sélectionné</h3>
         <p class="info-empty">Aucun élément sélectionné.</p>
@@ -842,11 +809,6 @@
             displayElementInfo(msg.data)
             break
 
-          case "inspector-mode":
-            inspectorActive = msg.data.enabled
-            btnInspector.classList.toggle("active", inspectorActive)
-            break
-
           case "link-navigation":
             showNavBanner(msg.data.url, msg.data.text)
             log(`Navigation bloquée → ${msg.data.url}`, "error")
@@ -860,18 +822,13 @@
 
       // ─── Display element info ───────────────────────────
       function displayElementInfo(data) {
-        const { selector, tagName, id, classes, rect, text } = data
+        const { tagName, id, classes, rect, text } = data
 
         let html = `<h3>Élément sélectionné</h3>`
 
         html += `<div class="info-card">
         <div class="info-label">Tag</div>
         <div class="info-value tag">&lt;${tagName}&gt;</div>
-      </div>`
-
-        html += `<div class="info-card">
-        <div class="info-label">Selector</div>
-        <div class="info-value">${escapeHtml(selector)}</div>
       </div>`
 
         if (id) {
@@ -904,9 +861,6 @@
 
         elementInfo.innerHTML = html
 
-        // Auto-fill selector input
-        selectorInput.value = selector
-
         log(`Selected: <${tagName}>${id ? "#" + id : ""}`, "success")
       }
 
@@ -915,14 +869,6 @@
         div.textContent = str
         return div.innerHTML
       }
-
-      // ─── Keyboard shortcuts ─────────────────────────────
-      document.addEventListener("keydown", (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "C") {
-          e.preventDefault()
-          btnInspector.click()
-        }
-      })
 
       // ─── Auto-load if URL in hash ───────────────────────
       if (window.location.hash) {

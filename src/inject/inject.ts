@@ -365,7 +365,7 @@
         break
       }
 
-      const parent = current.parentElement
+      const parent: Element | null = current.parentElement
       if (parent) {
         const siblings = Array.from(parent.children).filter(
           (c) => c.tagName === current!.tagName,
@@ -501,7 +501,7 @@
       }
 
       case "get-element-info": {
-        const el = document.querySelector(msg.selector)
+        const el: Element | null = document.querySelector(msg.selector)
         if (el) {
           const rect = el.getBoundingClientRect()
           const computed = window.getComputedStyle(el)

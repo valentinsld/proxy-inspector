@@ -592,14 +592,14 @@
       highlightElement(null)
     }
     // Ctrl/Cmd + Shift + C to toggle inspector
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "C") {
-      e.preventDefault()
-      if (inspectorMode) {
-        disableInspector()
-      } else {
-        enableInspector()
-      }
-    }
+    // if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "C") {
+    //   e.preventDefault()
+    //   if (inspectorMode) {
+    //     disableInspector()
+    //   } else {
+    //     enableInspector()
+    //   }
+    // }
   })
 
   // ─── Intercept link navigation ──────────────────────────────────────────
